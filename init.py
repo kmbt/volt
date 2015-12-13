@@ -2,6 +2,7 @@ from __future__ import print_function
 from pyglet.gl import *
 import pyglet.gl as gl
 import random
+import copy
 
 
 def draw_rectangle(window, x, y, dx, dy, fill=None, border=None):
@@ -26,8 +27,6 @@ def draw_rectangle(window, x, y, dx, dy, fill=None, border=None):
 class Event(object):
     pass
 
-class StreamCollection(object):
-    pass
 
 class Observable(object):
     def __init__(self):
@@ -74,15 +73,18 @@ def omap(function, observable):
     return MappingObservable(function, observable)
 
 class Widget(object):
-    def __init__(self):
+    def __init__(self, window, streams):
         self.x, self.y = 0, 0
         self.dx, self.dy = 0, 0
+        self.streams = streams
+        self.window = window
+
+        """
         self.streams = StreamCollection()
         self.streams.resize = BoxDimensions()
-        
-        # self.streams.resize.subscribe( lambda e: self.fit_to_rect(e.x, e.y, e.dx, e.dy))
         self.streams.draw = ObservableStream()
         print(type(self.streams.resize))
+        """
     
 
     def draw(self, e):
@@ -121,12 +123,16 @@ class StreamDispatcher(object):
         pass
 
 class ColumnsDispatcher(StreamDispatcher):
-    def __init__(self, stream_bundle):
+    def __init__(self, window, stream_bundle):
+        self.window = window
         super(ColumnsDispatcher, self).__init__(stream_bundle)
         """
         self.streams.mouse_drag_release.subscribe(
                 self.on_drag_release)
         """
+
+    def add_column(self):
+        self.add(Column(window, self.streams))
 
     def reorder(self, idx_from, idx_to):
         if idx_from == idx_to:
@@ -162,7 +168,7 @@ class ColumnsDispatcher(StreamDispatcher):
             area_ratio = float(column.area_share) / area_sum
             map_fn = self.child_map_factory(ratio_accumulator, area_ratio)
 
-            child_resize_stream = omap(map_fn, self.streams.resize)
+            child_resize_stream = omap(map_fn, self.streams.columns_size)
             fun = column.fit_to_rect
 
             child_resize_stream.subscribe(make_fit_func(column))
@@ -188,26 +194,20 @@ class ColumnsDispatcher(StreamDispatcher):
         
 
 
-class Root(Widget, Observable):
-    def __init__(self, window):
-        super(Root, self).__init__()
-        self.window = window
-
-        # self.streams.draw = parent_streams.draw
-        # self.streams.draw.subscribe(self.draw)
-
-        #self.columns = Columns(self.streams)
-        self.columns_dispatcher = ColumnsDispatcher(self.streams)
-
-        self.columns_dispatcher.add(Column(window))
-        self.columns_dispatcher.add(Column(window))
-        self.columns_dispatcher.add(Column(window))
-        self.columns_dispatcher.add(Column(window))
+class Root(Widget):
+    def __init__(self, window, streams):
+        super(Root, self).__init__(window, streams)
 
 
-        # self.streams.draw.subscribe(column.draw)
-        # self.streams.resize.subscribe(lambda e:
-        # column.fit_to_rect(e.x, e.y, e.dx, e.dy))
+        columns_streams = self.streams.clone()
+        columns_streams.columns_size = columns_streams.window_size
+
+        self.columns_dispatcher = ColumnsDispatcher(window, columns_streams)
+
+
+
+    def add_column(self):
+        self.columns_dispatcher.add_column()
 
 
     def add_zeropos(self, e):
@@ -222,13 +222,15 @@ class Root(Widget, Observable):
 
 
 class Column(Widget):
-    def __init__(self, window):
-        super(Column, self).__init__()
+    def __init__(self, window, streams):
+        super(Column, self).__init__(window, streams)
         self.area_share = 1.0
 
-        self.debug_rect = DebugRect(window)
+        self.debug_rect = DebugRect(window, streams)
+        """
         self.streams.resize.subscribe(lambda e:
                 self.debug_rect.fit_to_rect(e.x, e.y, e.dx, e.dy))
+        """
         self.streams.draw.subscribe(self.debug_rect.draw)
         
     def draw(self, e):
@@ -236,49 +238,10 @@ class Column(Widget):
         self.streams.draw.fire()
 
 
-class Rectangle(Widget):
-    def __init__(self, window, x, y, dx, dy, fill=None, border=None):
-        super(Rectangle, self).__init__()
-        self.window = window
-        self.x, self.y = x, y
-        self.dx, self.dy = dx, dy
-        if not fill:
-            fill = (1.0, 1.0, 1.0)
-        self.fill = fill
-        self.border = border
-
-    def move_to(self, x, y):
-        self.x, self.y = x, y
-
-    def draw(self):
-        draw_rectangle(self.window, self.x, self.y, self.dx, self.dy,
-                self.fill, self.border)
-
-class Rectangle2(Widget):
-    def __init__(self, window, dimensions, fill=None, border=None):
-        #super(Rectangle2, self).__init__(window)
-        self.e_dimensions = dimensions
-        self.window = window
-        if not fill:
-            fill = (1.0, 1.0, 1.0)
-        self.fill = fill
-        self.border = border
-
-        self.e_dimensions.subscribe(lambda e:
-                self.fit_to_rect(e.x, e.y, e.dx, e.dy))
-        self.e_draw = Observable()
-        self.e_draw.subscribe(self.draw)
-        self.x, self.y = 0, 0
-        self.dx, self.dy = 0, 0
-
-    def draw(self, e):
-        print("drawing")
-        draw_rectangle(self.window, self.x, self.y, self.dx, self.dy,
-                self.fill, self.border)
 
 class DebugRect(Widget):
-    def __init__(self, window):
-        super(DebugRect, self).__init__()
+    def __init__(self, window, streams):
+        super(DebugRect, self).__init__(window, streams)
         self.window = window
         self.fill = tuple(random.uniform(.5,1.0) for _ in range(3))
         self.border = None
@@ -329,7 +292,11 @@ class MouseDragRelease(ObservableStream):
 class BoxDimensions(ObservableStream):
     pass
 
-class WindowStreams(object):
+class StreamCollection(object):
+    def clone(self):
+        return copy.copy(self)
+
+class WindowStreams(StreamCollection):
     def __init__(self):
         self.mouse_position = MousePosition()
         self.mouse_drag_release  = MouseDragRelease()
@@ -340,7 +307,11 @@ class WindowStreams(object):
 we = WindowStreams()
 
 window = pyglet.window.Window()
-root = Root(window)
+root = Root(window, we)
+
+
+for _ in range(4):
+    root.add_column()
 
 # self.streams.resize = omap(self.add_zeropos, parent_streams.window_size)
 
@@ -379,7 +350,7 @@ def on_mouse_release(x, y, buttons, modifiers):
 @window.event
 def on_resize(dx, dy):
     print("resize!")
-    we.window_size.update(dx=dx, dy=dy)
+    we.window_size.update(x=0, y=0, dx=dx, dy=dy)
 
 # mouse_buttons = MouseButtons()
 # gth = ofilter(lambda e: e.x>100 and e.y>100, mouse_position)
