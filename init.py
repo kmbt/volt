@@ -86,7 +86,6 @@ class Widget(object):
         print(type(self.streams.resize))
         """
     
-
     def draw(self, e):
         pass
 
@@ -103,36 +102,33 @@ class Widget(object):
         print(type(self))
         print(type(self.streams.resize))
         """
-        self.streams.resize.update(x=x, y=y, dx=dx, dy=dy)
-        print(x,y,dx,dy)
-        self.streams.resize.fire()
-        self.draw(None)
+        # self.streams.resize.update(x=x, y=y, dx=dx, dy=dy)
+        # print(x,y,dx,dy)
+        # self.streams.resize.fire()
+        # self.draw(None)
         # self.fire()
         
 
 
 class StreamDispatcher(object):
-    def __init__(self, stream_bundle):
-        self.streams = stream_bundle
+    def __init__(self, window, streams):
+        # self.streams = streams
         self.items = []
-        self.resize_streams = []
     def add(self, item):
         self.items.append(item)
         self.rewire()
     def rewire(self):
         pass
 
-class ColumnsDispatcher(StreamDispatcher):
-    def __init__(self, window, stream_bundle):
-        self.window = window
-        super(ColumnsDispatcher, self).__init__(stream_bundle)
-        """
-        self.streams.mouse_drag_release.subscribe(
-                self.on_drag_release)
-        """
+class ColumnsDispatcher(StreamDispatcher, Widget):
+    def __init__(self, window, streams):
+        # super(ColumnsDispatcher, self).__init__(window, streams)
+        StreamDispatcher.__init__(self, window, streams)
+        Widget.__init__(self, window, streams)
 
     def add_column(self):
-        self.add(Column(window, self.streams))
+        column_streams = self.streams.clone()
+        self.add(Column(window, column_streams))
 
     def reorder(self, idx_from, idx_to):
         if idx_from == idx_to:
@@ -158,7 +154,7 @@ class ColumnsDispatcher(StreamDispatcher):
         area_sum = sum(c.area_share for c in self.items)
         ratio_accumulator = 0
         # TODO: detach former resize streams
-        self.resize_streams = []
+        # self.resize_streams = []
 
         def make_fit_func(column):
             return lambda e: column.fit_to_rect(e.x, e.y, e.dx, e.dy)
@@ -198,12 +194,13 @@ class Root(Widget):
     def __init__(self, window, streams):
         super(Root, self).__init__(window, streams)
 
+        self.streams.window_size.subscribe(lambda e: self.fit_to_rect(x=0, y=0, dx=e.dx, dy=e.dy))
+        self.streams.draw.subscribe(lambda e: root.draw(e))
 
         columns_streams = self.streams.clone()
         columns_streams.columns_size = columns_streams.window_size
 
         self.columns_dispatcher = ColumnsDispatcher(window, columns_streams)
-
 
 
     def add_column(self):
@@ -217,8 +214,9 @@ class Root(Widget):
         return f
 
     def draw(self, e):
-        # print("draw root", self.x, self.y, self.dx, self.dy)
-        self.streams.draw.fire()
+        print("draw root", self.x, self.y, self.dx, self.dy)
+        # self.streams.draw.fire()
+        pass
 
 
 class Column(Widget):
@@ -234,8 +232,7 @@ class Column(Widget):
         self.streams.draw.subscribe(self.debug_rect.draw)
         
     def draw(self, e):
-        # print("drawing column", id(self), self.x, self.y, self.dx, self.dy)
-        self.streams.draw.fire()
+        print("drawing column", id(self), self.x, self.y, self.dx, self.dy)
 
 
 
@@ -247,7 +244,7 @@ class DebugRect(Widget):
         self.border = None
 
     def draw(self, e):
-        # print("Drawing rect", id(self),  self.x, self.y, self.dx, self.dy)
+        print("Drawing rect", id(self),  self.x, self.y, self.dx, self.dy)
         draw_rectangle(self.window, self.x, self.y, self.dx, self.dy,
                 self.fill, self.border)
 
@@ -260,6 +257,9 @@ class ObservableStream(Observable):
         self.fire()
     def fire(self):
         return super(ObservableStream, self).fire(**self.data)
+    def feed_into(self, streams):
+        pass
+        #TODO
 
 class WindowSize(ObservableStream):
     pass
@@ -315,8 +315,8 @@ for _ in range(4):
 
 # self.streams.resize = omap(self.add_zeropos, parent_streams.window_size)
 
-we.window_size.subscribe(lambda e: root.fit_to_rect(x=0, y=0, dx=e.dx, dy=e.dy))
-we.draw.subscribe(lambda e: root.draw(e))
+# we.window_size.subscribe(lambda e: root.fit_to_rect(x=0, y=0, dx=e.dx, dy=e.dy))
+# we.draw.subscribe(lambda e: root.draw(e))
 
 root.connect_streams(
         mouse_drag_release = we.mouse_drag_release
@@ -349,7 +349,6 @@ def on_mouse_release(x, y, buttons, modifiers):
 
 @window.event
 def on_resize(dx, dy):
-    print("resize!")
     we.window_size.update(x=0, y=0, dx=dx, dy=dy)
 
 # mouse_buttons = MouseButtons()
