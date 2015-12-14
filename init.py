@@ -5,6 +5,44 @@ import random
 import copy
 
 
+# after http://stackoverflow.com/questions/1092531/event-system-in-python/2022629#2022629
+class Event(list):
+    """Event subscription.
+
+    A list of callable objects. Calling an instance of this will cause a
+    call to each item in the list in ascending order by index.
+
+    Example Usage:
+    >>> def f(x):
+    ...     print 'f(%s)' % x
+    >>> def g(x):
+    ...     print 'g(%s)' % x
+    >>> e = Event()
+    >>> e()
+    >>> e.append(f)
+    >>> e(123)
+    f(123)
+    >>> e.remove(f)
+    >>> e()
+    >>> e += (f, g)
+    >>> e(10)
+    f(10)
+    g(10)
+    >>> del e[0]
+    >>> e(2)
+    g(2)
+
+    """
+    def __call__(self, *args, **kwargs):
+        for f in self:
+            f(*args, **kwargs)
+
+    def __repr__(self):
+        return "Event(%s)" % list.__repr__(self)
+
+def EventCollection(object):
+    pass
+
 def draw_rectangle(window, x, y, dx, dy, fill=None, border=None):
     glColor3f(*fill)
 
@@ -24,7 +62,7 @@ def draw_rectangle(window, x, y, dx, dy, fill=None, border=None):
         glVertex2f(x+dx, window.height-y)
         glEnd()
 
-class Event(object):
+class EventSignal(object):
     pass
 
 
@@ -34,37 +72,52 @@ class Observable(object):
     def subscribe(self, callback):
         self.callbacks.append(callback)
     def fire(self, **attrs):
-        e = Event()
+        e = EventSignal()
         e.source = self
         for k, v in attrs.iteritems():
             setattr(e, k, v)
+        self.inject(e)
+    def inject(self, e):
         for fn in self.callbacks:
             fn(e)
 
-class MappingObservable(Observable):
+class ObservableStream(Observable):
+    def feed_to(self, stream):
+        self.subscribe(stream.inject)
+
+class MappingObservable(ObservableStream):
     def __init__(self, map_fn, observed):
         super(MappingObservable, self).__init__()
         self.map_fn = map_fn
         self.observed = observed
-        self.observed.subscribe(self.update)
-    def update(self, e):
-        self.fire(self.map_fn(e))
-    def fire(self, e):
-        for fn in self.callbacks:
-            fn(e)
+        self.observed.subscribe(self.inject)
+    def inject(self, e):
+        super(MappingObservable, self).inject(self.map_fn(e))
 
-class FilteringObservable(Observable):
+class FilteringObservable(ObservableStream):
     def __init__(self, filter_fn, observed):
         super(FilteringObservable, self).__init__()
         self.filter_fn = filter_fn
         self.observed = observed
-        self.observed.subscribe(self.update)
-    def update(self, e):
+        self.observed.subscribe(self.inject)
+    def inject(self, e):
         if self.filter_fn(e):
-            self.fire(e)
-    def fire(self, e):
-        for fn in self.callbacks:
-            fn(e)
+            super(MappingObservable, self).inject(e)
+
+
+"""
+    def __init__(self):
+        super(ObservableStream, self).__init__()
+        self.data = dict()
+    def update(self, **kwargs):
+        self.data = kwargs
+        self.fire()
+    def fire(self):
+        return super(ObservableStream, self).fire(**self.data)
+    def feed_into(self, streams):
+        pass
+        #TODO
+"""
 
 def ofilter(function, observable):
     return FilteringObservable(function, observable)
@@ -79,15 +132,21 @@ class Widget(object):
         self.streams = streams
         self.window = window
 
-        """
-        self.streams = StreamCollection()
-        self.streams.resize = BoxDimensions()
-        self.streams.draw = ObservableStream()
-        print(type(self.streams.resize))
-        """
-    
-    def draw(self, e):
+        self.events = []
+        self.children = []
+
+        self.events = {}
+        self.events["draw"] = Event()
+        self.events["draw"].append(self.on_draw)
+
+
+    def on_draw(self):
         pass
+
+
+    def resize(self):
+        pass
+
 
     def connect_streams(self, **kwargs):
         for key, value in kwargs.iteritems():
@@ -161,14 +220,18 @@ class ColumnsDispatcher(StreamDispatcher, Widget):
 
         for column in self.items:
             print("wiring column", id(column))
+
+            column_streams = self.streams.clone()
+
             area_ratio = float(column.area_share) / area_sum
             map_fn = self.child_map_factory(ratio_accumulator, area_ratio)
 
             child_resize_stream = omap(map_fn, self.streams.columns_size)
-            fun = column.fit_to_rect
 
-            child_resize_stream.subscribe(make_fit_func(column))
-            self.streams.draw.subscribe(column.draw)
+            # fun = column.fit_to_rect
+
+            # child_resize_stream.subscribe(make_fit_func(column))
+            # self.streams.draw.subscribe(column.draw)
             ratio_accumulator += area_ratio
 
     def child_filter_factory(self, x, dx):
@@ -180,7 +243,7 @@ class ColumnsDispatcher(StreamDispatcher, Widget):
     def child_map_factory(self, r_acc, r_delta):
         def map_fn(e):
             print("acc", r_acc, "delta", r_delta)
-            o = Event()
+            o = EventSignal()
             o.x = e.x + r_acc * e.dx
             o.dx = r_delta * e.dx
             o.y, o.dy = e.y, e.dy
@@ -208,7 +271,7 @@ class Root(Widget):
 
 
     def add_zeropos(self, e):
-        f = Event()
+        f = EventSignal()
         f.x, f.y = 0, 0
         f.dx, f.dy = e.dx, e.dy
         return f
@@ -224,12 +287,15 @@ class Column(Widget):
         super(Column, self).__init__(window, streams)
         self.area_share = 1.0
 
-        self.debug_rect = DebugRect(window, streams)
+        debug_rect_streams = streams.clone()
+        self.debug_rect = DebugRect(window, debug_rect_streams)
+        
+        self.streams.column_size.feed_to(self.debug_rect.streams.resize)
         """
         self.streams.resize.subscribe(lambda e:
                 self.debug_rect.fit_to_rect(e.x, e.y, e.dx, e.dy))
         """
-        self.streams.draw.subscribe(self.debug_rect.draw)
+        # self.streams.draw.subscribe(self.debug_rect.draw)
         
     def draw(self, e):
         print("drawing column", id(self), self.x, self.y, self.dx, self.dy)
@@ -243,23 +309,19 @@ class DebugRect(Widget):
         self.fill = tuple(random.uniform(.5,1.0) for _ in range(3))
         self.border = None
 
+        self.streams.draw.subscribe(self.draw)
+
+        self.streams.resize = ObservableStream()
+        self.streams.resize.subscribe(self.resize)
+
+    def resize(self, e):
+        self.fit_to_rect(x=e.x, y=e.y, dx=e.dx, dy=e.dy)
+
     def draw(self, e):
         print("Drawing rect", id(self),  self.x, self.y, self.dx, self.dy)
         draw_rectangle(self.window, self.x, self.y, self.dx, self.dy,
                 self.fill, self.border)
 
-class ObservableStream(Observable):
-    def __init__(self):
-        super(ObservableStream, self).__init__()
-        self.data = dict()
-    def update(self, **kwargs):
-        self.data = kwargs
-        self.fire()
-    def fire(self):
-        return super(ObservableStream, self).fire(**self.data)
-    def feed_into(self, streams):
-        pass
-        #TODO
 
 class WindowSize(ObservableStream):
     pass
@@ -275,19 +337,19 @@ class MouseDragRelease(ObservableStream):
             self.start[i] = None
         
     def mouse_press(self, x, y, buttons, modifiers):
-        e = Event()
+        e = EventSignal()
         e.x, e.y = x, y
         self.start[1] = e
 
     def mouse_release(self, x, y, buttons, modifiers):
         print("mouse release")
         p = self.start[1]
-        self.update(x=x, y=y, x0=p.x, y0=p.y)
+        self.fire(x=x, y=y, x0=p.x, y0=p.y)
 
     def mouse_drag(self, x, y, buttons, modifiers):
         pass
 
-# class DrawEvent(Observable):
+# class DrawEventSignal(Observable):
 
 class BoxDimensions(ObservableStream):
     pass
@@ -336,7 +398,7 @@ widgets.append(rectangle)
 we.mouse_drag_release.subscribe(lambda e: print("dragged", e.__dict__))
 @window.event
 def on_mouse_motion(x, y, dx, dy):
-    we.mouse_position.update(x=x, y=window.height-y)
+    we.mouse_position.fire(x=x, y=window.height-y)
 
 @window.event
 def on_mouse_press(x, y, buttons, modifiers):
@@ -349,7 +411,7 @@ def on_mouse_release(x, y, buttons, modifiers):
 
 @window.event
 def on_resize(dx, dy):
-    we.window_size.update(x=0, y=0, dx=dx, dy=dy)
+    we.window_size.fire(x=0, y=0, dx=dx, dy=dy)
 
 # mouse_buttons = MouseButtons()
 # gth = ofilter(lambda e: e.x>100 and e.y>100, mouse_position)
