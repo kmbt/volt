@@ -197,11 +197,11 @@ def on_mouse_motion(x, y, dx, dy):
 
 @window.event
 def on_mouse_press(x, y, buttons, modifiers):
-    mouse.press(x, y, buttons, modifiers)
+    mouse.press(x, window.height-y, buttons, modifiers)
 
 @window.event
 def on_mouse_release(x, y, buttons, modifiers):
-    mouse.release(x, y, buttons, modifiers)
+    mouse.release(x, window.height-y, buttons, modifiers)
 
 
 @window.event

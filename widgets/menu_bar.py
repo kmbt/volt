@@ -1,13 +1,15 @@
 import widget
 import debug_rect
 import constants
+import handle
 
 class MenuBar(widget.Widget):
     def __init__(self, parent):
         super(MenuBar, self).__init__(parent)
 
-        self.background = debug_rect.DebugRect(self)
-        self.handle = debug_rect.DebugRect(self)
+        # self.background = debug_rect.DebugRect(self)
+        self.background = widget.Widget(self)
+        self.handle = handle.Handle(self)
         self.text_field = debug_rect.DebugRect(self)
 
         self.children.append(self.background)

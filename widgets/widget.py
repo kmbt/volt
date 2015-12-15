@@ -43,6 +43,7 @@ class Widget(object):
 
     def iter_children_at_point(self, x, y):
         widget = self
+        yield widget
         while 1:
             child = widget.get_child_at_point(x, y)
             if not child:
@@ -51,7 +52,7 @@ class Widget(object):
             widget = child
 
     def get_children_at_point(self, x, y):
-        return list(self.get_child_at_point(x, y))
+        return list(self.iter_children_at_point(x, y))
 
 
     def reorder_children(self, idx_from, idx_to):

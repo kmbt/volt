@@ -13,6 +13,6 @@ class WidgetWithMenuBar(widget.Widget):
 
     def resize(self, x, y, dx, dy):
         super(WidgetWithMenuBar, self).resize(x, y, dx, dy)
-        self.menu_bar.resize(x, y, dx, y+self.bar_size)
+        self.menu_bar.resize(x, y, dx, self.bar_size)
         self.body.resize(x, y+self.bar_size, dx, dy-self.bar_size)
     
