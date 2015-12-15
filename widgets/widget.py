@@ -36,8 +36,12 @@ class Widget(object):
             if child.contains_point(x, y):
                 return idx
 
-    def get_child_at_point(self, x, y):
-        for child in self.children:
+    def get_child_at_point(self, x, y, reverse=False):
+        if reverse:
+            order = reversed
+        else:
+            order = lambda a: a
+        for child in order(self.children):
             if child.contains_point(x, y):
                 return child
 
@@ -45,7 +49,7 @@ class Widget(object):
         widget = self
         yield widget
         while 1:
-            child = widget.get_child_at_point(x, y)
+            child = widget.get_child_at_point(x, y, reverse=True)
             if not child:
                 break
             yield child
