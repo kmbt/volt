@@ -10,3 +10,8 @@ class Handle(widget.Widget):
 
     def update(self):
         self.background.resize(self.x, self.y, self.dx, self.dy)
+
+    def on_drag_release(self, x0, y0, x, y):
+        self.parent.on_drag_release_handle(self, x, y)
+        print "drag release at handle!"
+        # emit event "on_drag_release_handle" that travels to the root of tree
