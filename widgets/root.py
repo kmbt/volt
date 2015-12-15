@@ -11,6 +11,7 @@ class Root(widget_with_menu_bar.WidgetWithMenuBar):
         self.window = window
         # self.mouse = input_system.mouse.Mouse()
         super(Root, self).__init__(self)
+        self.parent = None
 
         # self.menu_bar = debug_rect.DebugRect(self)
         self.columns = columns.Columns(self)

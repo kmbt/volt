@@ -65,3 +65,18 @@ class Widget(object):
         item = self.children.pop(idx_from)
         self.children.insert(idx_to, item)
         self.update()
+
+    def bubble_event(self, event_name, *args, **kwargs):
+        self._bubble_event("event_name", self, *args, **kwargs)
+
+    def _bubble_event(self, event_name, *args, **kwargs):
+        if self.parent == None:
+            return
+        handler_name = "on_{}".format(event_name)
+        if hasattr(self.parent, handler_name):
+            handler_method = getattr(self.parent, handler_name)
+            result = handler_method(*args, **kwargs)
+            if type(result) == bool and result == False:
+                return
+        self.parent.bubble_event(event_name, *args, **kwargs)
+        

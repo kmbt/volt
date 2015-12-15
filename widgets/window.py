@@ -11,5 +11,9 @@ class Window(widget_with_menu_bar.WidgetWithMenuBar):
         self.body = widget.Widget(self)
 
         self.children.append(self.body)
+    
+    def on_drag_release_handle(self, x, y):
+        self.bubble_event("
+        return False
 
 
