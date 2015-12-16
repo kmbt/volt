@@ -13,3 +13,4 @@ class Column(widget_with_menu_bar.WidgetWithMenuBar):
         self.children.append(self.windows)
 
 
+

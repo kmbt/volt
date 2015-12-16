@@ -12,8 +12,7 @@ class Window(widget_with_menu_bar.WidgetWithMenuBar):
 
         self.children.append(self.body)
     
-    def on_drag_release_handle(self, x, y):
-        self.bubble_event("
+    def on_drag_release_handle(self, target, x, y):
+        print "drag release"
+        self.bubble_event("reposition_window", x, y)
         return False
-
-

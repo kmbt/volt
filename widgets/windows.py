@@ -30,4 +30,9 @@ class Windows(widget.Widget):
 
             ratio_accumulator += area_ratio
 
-
+    def on_reposition_window(self, target, x, y):
+        if self.contains_point(x, y):
+            idx_from = self.get_child_idx(target)
+            idx_to = self.get_child_idx_at_point(x, y)
+            self.reorder_children(idx_from, idx_to)
+            return False

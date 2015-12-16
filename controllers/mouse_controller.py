@@ -11,4 +11,4 @@ class MouseController(object):
                 event_handler = widget.on_drag_release
             except AttributeError:
                 continue
-            event_handler(x0, y0, x, y)
+            event_handler(self, x0, y0, x, y)

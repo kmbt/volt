@@ -36,6 +36,9 @@ class Widget(object):
             if child.contains_point(x, y):
                 return idx
 
+    def get_child_idx(self, child):
+        return self.children.index(child)
+
     def get_child_at_point(self, x, y, reverse=False):
         if reverse:
             order = reversed
@@ -66,11 +69,32 @@ class Widget(object):
         self.children.insert(idx_to, item)
         self.update()
 
+    def attach_child(self, child, x, y):
+        pass
+    
+    def detach_child_idx(self, idx):
+        child = self.children.pop(idx)
+        child.unparrent()
+        self.update()
+
+    def detach_child(self, child):
+        self.children.remove(child)
+        child.unparrent()
+        self.update()
+
+    def unparrent(self):
+        self.parrent = None
+
+    def reparrent(self, parrent):
+        self.parrent = parrent
+
     def bubble_event(self, event_name, *args, **kwargs):
-        self._bubble_event("event_name", self, *args, **kwargs)
+        self._bubble_event(event_name, self, *args, **kwargs)
 
     def _bubble_event(self, event_name, *args, **kwargs):
+        print "bubbling", event_name, "from", args[0], "at", self
         if self.parent == None:
+            print "Warning, event", event_name, "has hit the root!"
             return
         handler_name = "on_{}".format(event_name)
         if hasattr(self.parent, handler_name):
@@ -78,5 +102,5 @@ class Widget(object):
             result = handler_method(*args, **kwargs)
             if type(result) == bool and result == False:
                 return
-        self.parent.bubble_event(event_name, *args, **kwargs)
+        self.parent._bubble_event(event_name, *args, **kwargs)
         

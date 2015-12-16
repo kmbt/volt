@@ -42,3 +42,9 @@ class Columns(widget.Widget):
 
             ratio_accumulator += area_ratio
 
+    def on_reposition_window(self, target, x, y):
+        column_from = target.parent
+        column_to = self.get_child_at_point(x, y)
+        column_from.detach_child(target)
+        #column_to.attach_child(target)
+
