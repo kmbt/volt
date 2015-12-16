@@ -69,8 +69,10 @@ class Widget(object):
         self.children.insert(idx_to, item)
         self.update()
 
-    def attach_child(self, child, x, y):
-        pass
+    def attach_child_at_idx(self, idx_to, child):
+        self.children.insert(idx_to, child)
+        child.reparent(self)
+        self.update()
     
     def detach_child_idx(self, idx):
         child = self.children.pop(idx)
@@ -85,14 +87,14 @@ class Widget(object):
     def unparrent(self):
         self.parrent = None
 
-    def reparrent(self, parrent):
-        self.parrent = parrent
+    def reparent(self, parent):
+        self.parent = parent
 
     def bubble_event(self, event_name, *args, **kwargs):
         self._bubble_event(event_name, self, *args, **kwargs)
 
     def _bubble_event(self, event_name, *args, **kwargs):
-        print "bubbling", event_name, "from", args[0], "at", self
+        # print "bubbling", event_name, "from", args[0], "at", self
         if self.parent == None:
             print "Warning, event", event_name, "has hit the root!"
             return

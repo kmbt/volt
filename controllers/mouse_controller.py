@@ -6,7 +6,7 @@ class MouseController(object):
 
     def on_drag_release(self, x0, y0, x, y):
         for widget in reversed(self.root.get_children_at_point(x0, y0)):
-            print widget
+            # print widget
             try: 
                 event_handler = widget.on_drag_release
             except AttributeError:
