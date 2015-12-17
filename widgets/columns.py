@@ -53,4 +53,5 @@ class Columns(widget.Widget):
             else:
                 idx_to += 1
             windows_to.attach_child_at_idx(idx_to, target)
+            return False
 

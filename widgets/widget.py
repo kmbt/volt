@@ -80,7 +80,8 @@ class Widget(object):
         self.update()
 
     def detach_child(self, child):
-        self.children.remove(child)
+        idx = self.children.index(child)
+        self.detach_child_idx(idx)
         child.unparrent()
         self.update()
 
